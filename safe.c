@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <string.h>
 #include <dlfcn.h>
 #include <unistd.h>
 #include "plt.h"
@@ -12,7 +11,7 @@
 /* --- Initialization & ELF processing--- */
 
 elf_t elf;
-unsigned long base_address = 0;
+unsigned long base_address = 0;  // base of elf, for shared libraries
 
 void asyncsafe_init(void) {
     static int initialized = 0;
@@ -21,6 +20,7 @@ void asyncsafe_init(void) {
 
     maybe_enable_logging();
 
+    // by default, open the ELF for the main executable
     get_elf_info_for_pid(&elf, getpid());
 
     plt_count = elf.plt_got_size;
