@@ -147,12 +147,30 @@ static const char *allowed[] = {
 };
 
 int is_allowed(const char *function) {
-#if 1  // linear search
+#if 0  // linear search
     for(size_t z = 0; z < sizeof(allowed)/sizeof(*allowed); z ++) {
         if(strcmp(allowed[z], function) == 0) {
             return 1;  // allowed
         }
     }
+#else  // binary search
+    size_t low = 0;
+    size_t high = sizeof(allowed)/sizeof(*allowed);
+    size_t middle = 0;
+    while(low < high) {
+        middle = (low + high) / 2;
+
+        int c = strcmp(function, allowed[middle]);
+        if(c < 0) {
+            high = middle;
+        }
+        else if(c > 0) {
+            low = middle + 1;
+        }   
+        else {
+            return 1;  // allowed
+        }   
+    }   
 #endif
     return 0;
 }
