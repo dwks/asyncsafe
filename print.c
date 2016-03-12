@@ -10,10 +10,12 @@
 int logging = 0;
 
 void maybe_enable_logging(void) {
+#ifndef DISABLE_LOGGING
     char *env = getenv("ASYNCSAFE_LOGGING");
     if(env && strcmp(env, "0")) {  // anything but "0"
         logging = 1;
     }
+#endif
 }
 
 int log_printf(const char *s, ...) {
