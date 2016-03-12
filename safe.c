@@ -11,6 +11,11 @@
 
 static elf_t elf;
 static int initialized = 0;
+
+unsigned long sym_index[96/16];
+unsigned long orig_address[96/16];
+int plt_allowed[96/16];
+
 void asyncsafe_init(void) {
     if(initialized) return;
 
@@ -18,15 +23,9 @@ void asyncsafe_init(void) {
     initialized = 1;
 }
 
-typedef void (*sighandler_t)(int);
-typedef void (*sigaction_t)(int, siginfo_t *, void *);
-
 #define SIG_WRITE(s) \
     write(STDERR_FILENO, s, sizeof s)
 
-unsigned long sym_index[96/16];
-
-void asyncsafe_violation_asm(void);
 void asyncsafe_violation(int index) {
     Elf64_Sym *symtab = (Elf64_Sym *)(elf.map + elf.dynsym->sh_offset);
     Elf64_Sym *sym = symtab + sym_index[index];
@@ -39,13 +38,11 @@ void asyncsafe_violation(int index) {
     SIG_WRITE("]\n");
 }
 
-unsigned long orig_address[96/16];
-int plt_allowed[96/16];
-void *orig_resolve;
-
 const char *allowed[] = {
     "write"
 };
+
+void *orig_resolve;
 
 void enable_normal(elf_t *elf) {
     unsigned long handler = *(unsigned int *)(elf->plt + 8) + elf->plt + 8 + 4;
@@ -56,6 +53,7 @@ void erase_entries(elf_t *elf) {
     unsigned long handler = *(unsigned int *)(elf->plt + 8) + elf->plt + 8 + 4;
     printf("handler %lx\n", handler);
     orig_resolve = *(unsigned long *)handler;
+    extern void asyncsafe_violation_asm(void);
     *(unsigned long *)handler = &asyncsafe_violation_asm;
 
 
@@ -111,40 +109,21 @@ void erase_entries(elf_t *elf) {
 }
 
 void asyncsafe_toggle(int on) {
-#if 0
-    unsigned char *p = (void *)elf.plt;
-    unsigned long plt_size = elf.plt_size;
-
-    unsigned long index = 0;
-    p += 16;  // skip first entry
-    while(p[0] == 0xff && p[1] == 0x25 && index*16 < plt_size) {
-        unsigned int *o = (unsigned int *)&p[2];
-        unsigned long *v = (unsigned long *)(*o + (unsigned char *)o + 4);
-        if(on) {
-            orig_address[index] = *v;
-            if(index != 2) {
-                *v = 0xdead;
-            }
-        }
-        else {
-            *v = orig_address[index];
-        }
-        p += 16;
-        index ++;
-    }
-#else
     if(on) {
         erase_entries(&elf);
     }
     else {
         enable_normal(&elf);
     }
-#endif
 }
+
+/* --- Signal interception (signal, sigaction) --- */
+
+typedef void (*sighandler_t)(int);
+typedef void (*sigaction_t)(int, siginfo_t *, void *);
 
 sigaction_t orig_func[64];  // max signals
 void asyncsafe_intercept(int signum, siginfo_t *info, void *context) {
-
     sigaction_t a = orig_func[signum];
     if(!a) return;
 
