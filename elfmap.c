@@ -6,6 +6,7 @@
 #include <sys/mman.h>
 
 #include "elfmap.h"
+#include "print.h"
 
 #define die(str) \
     puts(str), exit(1)

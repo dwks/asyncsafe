@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra #-DDISABLE_LOGGING
 
 .PHONY: all clean
 all: test libasyncsafe.so
@@ -7,7 +7,7 @@ all: test libasyncsafe.so
 test: test.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-libasyncsafe.so: safe.c allow.c elfmap.c resolve.s
+libasyncsafe.so: safe.c allow.c print.c elfmap.c plt.c resolve.s violation.c
 	$(CC) $(CFLAGS) -O -shared -fPIC $^ -o $@ -ldl
 
 clean:
