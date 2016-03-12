@@ -1,13 +1,13 @@
 CC = gcc
 CFLAGS = -Wall -Wextra
 
-.PHONY: all
+.PHONY: all clean
 all: test libasyncsafe.so
 
 test: test.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-libasyncsafe.so: safe.c elfmap.c a.s
+libasyncsafe.so: safe.c allow.c elfmap.c resolve.s
 	$(CC) $(CFLAGS) -O -shared -fPIC $^ -o $@ -ldl
 
 clean:

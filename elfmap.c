@@ -114,7 +114,8 @@ static void find_dynamic(elf_t *elf) {
 }
 
 static void find_got_and_plt(elf_t *elf) {
-    elf->got = elf->got_plt = elf->rela_plt = 0;
+    elf->got = elf->got_plt = 0;
+    elf->rela_plt = elf->rela_plt_offset = elf->rela_plt_size = 0;
     elf->symtab = elf->dynsym = 0;
     elf->plt = elf->plt_size = 0;
     elf->plt_got = elf->plt_got_size = 0;
@@ -131,6 +132,11 @@ static void find_got_and_plt(elf_t *elf) {
         if(!strcmp(name, ".plt")) {
             elf->plt      = (unsigned long)s->sh_addr;
             elf->plt_size = (unsigned long)s->sh_size;
+        }
+        if(!strcmp(name, ".rela.plt")) {
+            elf->rela_plt        = (unsigned long)s->sh_addr;
+            elf->rela_plt_offset = (unsigned long)s->sh_offset;
+            elf->rela_plt_size   = (unsigned long)s->sh_size;
         }
         if(!strcmp(name, ".plt.got")) {
             elf->plt_got        = (unsigned long)s->sh_addr;

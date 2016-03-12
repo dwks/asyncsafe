@@ -32,7 +32,8 @@ typedef struct elf_t {
     
     unsigned long *dynamic;  // pointer to _DYNAMIC
 
-    unsigned long *got, *got_plt, *rela_plt;
+    unsigned long *got, *got_plt;
+    unsigned long rela_plt, rela_plt_offset, rela_plt_size;
     Elf64_Shdr *symtab, *dynsym;
     unsigned long plt, plt_size;
     unsigned long plt_got, plt_got_size;
