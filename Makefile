@@ -7,7 +7,7 @@ all: test libasyncsafe.so
 test: test.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-libasyncsafe.so: safe.c elfmap.c
+libasyncsafe.so: safe.c elfmap.c a.s
 	$(CC) $(CFLAGS) -O -shared -fPIC $^ -o $@ -ldl
 
 clean:

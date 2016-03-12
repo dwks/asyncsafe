@@ -18,20 +18,40 @@ void asyncsafe_init(void) {
 typedef void (*sighandler_t)(int);
 typedef void (*sigaction_t)(int, siginfo_t *, void *);
 
-void asyncsafe_violation(void) {
-    puts("asyncsafe: violation!");
+#define SIG_WRITE(s) \
+    write(STDERR_FILENO, s, sizeof s)
+
+void asyncsafe_violation_asm(void);
+void asyncsafe_violation(int index) {
+    Elf64_Sym *symtab = (Elf64_Sym *)(elf.map + elf.dynsym->sh_offset);
+    Elf64_Sym *sym = symtab + (index + 1);
+    const char *name = elf.dynstr + sym->st_name;
+
+    SIG_WRITE("asyncsafe: violation! called [");
+    int len = 0;
+    while(name[len]) len++;
+    write(STDERR_FILENO, name, len);
+    SIG_WRITE("]\n");
 }
 
 unsigned long orig_address[96/16];
+int plt_allowed[96/16];
+void *orig_resolve;
 
 const char *allowed[] = {
     "write"
 };
 
+void enable_normal(elf_t *elf) {
+    unsigned long handler = *(unsigned int *)(elf->plt + 8) + elf->plt + 8 + 4;
+    *(unsigned long *)handler = orig_resolve;
+}
+
 void erase_entries(elf_t *elf) {
     unsigned long handler = *(unsigned int *)(elf->plt + 8) + elf->plt + 8 + 4;
     printf("handler %lx\n", handler);
-    *(unsigned long *)handler = &asyncsafe_violation;
+    orig_resolve = *(unsigned long *)handler;
+    *(unsigned long *)handler = &asyncsafe_violation_asm;
 
 
     Elf64_Sym *symtab = (Elf64_Sym *)(elf->map + elf->dynsym->sh_offset);
@@ -71,13 +91,14 @@ void erase_entries(elf_t *elf) {
                     }
                 }
 
-                printf("%s plt entry at %lx for [%s]\n",
-                    good ? "allow" : "BLOCK", address, name);
+                printf("%s plt entry at %lx (index %d) for [%s]\n",
+                    good ? "allow" : "BLOCK", address, symbol, name);
 
                 if(!good) {
                     orig_address[i] = *(unsigned long *)address;
-                    *(unsigned long *)address = &asyncsafe_violation;
+                    // *(unsigned long *)address = &asyncsafe_violation;
                 }
+                plt_allowed[i] = good;
             }
         }
     }
@@ -106,7 +127,12 @@ void asyncsafe_toggle(int on) {
         index ++;
     }
 #else
-    erase_entries(&elf);
+    if(on) {
+        erase_entries(&elf);
+    }
+    else {
+        enable_normal(&elf);
+    }
 #endif
 }
 

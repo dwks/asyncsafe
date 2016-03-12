@@ -3,7 +3,8 @@
 .global asyncsafe_ptr
 .global asyncsafe_violation_asm
 .extern asyncsafe_violation
-.extern plt_begin
+.extern plt_allowed
+.extern orig_resolve
 
 # first PLT entry
 #  ff 35 02 06 20 00     pushq  0x200602(%rip)        # 0x600a68
@@ -17,7 +18,7 @@
 asyncsafe_enter:
     push    %r10
     push    %r11
-    mov     plt_begin@got, %r10
+    #mov     plt_begin@got, %r10
     lea     asyncsafe_violation@plt, %r11
     mov     %r11, 7(%r10)
     pop     %r11
@@ -32,6 +33,17 @@ asyncsafe_ptr:
     hlt
 
 asyncsafe_violation_asm:
-    hlt
+    # at rsp is the got reference
+    mov     8(%rsp), %r10
+    mov     plt_allowed@gotpcrel(%rip), %r11
+    cmp     $0, (%r11, %r10, 4)
+    jnz     .good
+    push    %rdi
+    mov     %r10, %rdi
+    call    asyncsafe_violation@plt
+    pop     %rdi
+.good:
+    mov     orig_resolve@gotpcrel(%rip), %r11
+    jmp     *(%r11)
 
 .section .rodata
