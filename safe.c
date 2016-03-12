@@ -23,7 +23,7 @@ void asyncsafe_init(void) {
     // by default, open the ELF for the main executable
     get_elf_info_for_pid(&elf, getpid());
 
-    plt_count = elf.plt_got_size;
+    plt_count = elf.plt_got->sh_size;
     plt_allowed = calloc(plt_count, sizeof *plt_allowed);
     plt_symbol = calloc(plt_count, sizeof *plt_symbol);
     plt_orig_address = calloc(plt_count, sizeof *plt_orig_address);

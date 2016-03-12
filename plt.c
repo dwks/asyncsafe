@@ -40,7 +40,7 @@ static void change_resolve_func(elf_t *elf, int hijack) {
 }
 
 static void reset_plt_entries(elf_t *elf) {
-    Elf64_Rela *data = elf->map + elf->rela_plt_offset;
+    Elf64_Rela *data = elf->map + elf->rela_plt->sh_offset;
     for(size_t i = 0; i < plt_count; i ++) {
         Elf64_Rela *r = &data[i];
         unsigned long address   = base_address + r->r_offset;
@@ -70,7 +70,7 @@ static void reset_plt_entries(elf_t *elf) {
 
 static void restore_plt_entries(elf_t *elf) {
     puts("restore original plt entries");
-    Elf64_Rela *data = elf->map + elf->rela_plt_offset;
+    Elf64_Rela *data = elf->map + elf->rela_plt->sh_offset;
     for(size_t i = 0; i < plt_count; i ++) {
         Elf64_Rela *r = &data[i];
         unsigned long address   = base_address + r->r_offset;

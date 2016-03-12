@@ -14,19 +14,16 @@
 static void verify_elf(elf_t *elf);
 static void find_basic(elf_t *elf);
 static void find_strtab(elf_t *elf);
-static void find_dynamic(elf_t *elf);
 static void find_got_and_plt(elf_t *elf);
 
 void get_elf_info_for_pid(elf_t *elf, pid_t pid) {
-    //printf("mapping executable for process %d...\n", (int)pid);
-    
     char name[64];
     sprintf(name, "/proc/%d/exe", (int)pid);
     get_elf_info_for_file(elf, name);
 }
 
 void get_elf_info_for_file(elf_t *elf, const char *filename) {
-    //printf("getting ELF info for [%s]\n", filename);
+    printf("getting ELF info for [%s]\n", filename);
 
     elf->fd = open(filename, O_RDONLY, 0);
     if(elf->fd < 0) die("can't open executable image\n");
@@ -44,7 +41,6 @@ void get_elf_info_for_file(elf_t *elf, const char *filename) {
     
     find_basic(elf);
     find_strtab(elf);
-    find_dynamic(elf);
     find_got_and_plt(elf);
 }
 
@@ -57,7 +53,6 @@ void parse_elf_info_from_self(elf_t *elf, void *address) {
     
     find_basic(elf);
     find_strtab(elf);
-    find_dynamic(elf);
     find_got_and_plt(elf);
 }
 
@@ -102,103 +97,34 @@ static void find_strtab(elf_t *elf) {
     }
 }
 
-static void find_dynamic(elf_t *elf) {
-    elf->dynamic = 0;
-    for(int i = 0; i < elf->header->e_shnum; i ++) {
-        Elf64_Shdr *s = &elf->sheader[i];
-        const char *name = elf->shstrtab + s->sh_name;
-        if(!strcmp(name, ".dynamic")) {
-            elf->dynamic = (unsigned long *)s->sh_addr;
-            break;
-        }
-    }
-}
-
 static void find_got_and_plt(elf_t *elf) {
-    elf->got = elf->got_plt = 0;
-    elf->rela_plt = elf->rela_plt_offset = elf->rela_plt_size = 0;
-    elf->symtab = elf->dynsym = 0;
     elf->plt = elf->plt_size = 0;
-    elf->plt_got = elf->plt_got_size = 0;
+    elf->rela_plt = elf->plt_got = 0;
+    elf->symtab = elf->dynsym = 0;
     
     for(int i = 0; i < elf->header->e_shnum; i ++) {
         Elf64_Shdr *s = &elf->sheader[i];
         const char *name = elf->shstrtab + s->sh_name;
-        if(!strcmp(name, ".got")) {
-            elf->got = (unsigned long *)s->sh_addr;
-        }
-        if(!strcmp(name, ".got.plt")) {
-            elf->got_plt = (unsigned long *)s->sh_addr;
-        }
         if(!strcmp(name, ".plt")) {
             elf->plt      = (unsigned long)s->sh_addr;
             elf->plt_size = (unsigned long)s->sh_size;
         }
-        if(!strcmp(name, ".rela.plt")) {
-            elf->rela_plt        = (unsigned long)s->sh_addr;
-            elf->rela_plt_offset = (unsigned long)s->sh_offset;
-            elf->rela_plt_size   = (unsigned long)s->sh_size;
+        else if(!strcmp(name, ".plt.got")) {
+            elf->plt_got = s;
         }
-        if(!strcmp(name, ".plt.got")) {
-            elf->plt_got        = (unsigned long)s->sh_addr;
-            elf->plt_got_size   = (unsigned long)s->sh_size;
+        else if(!strcmp(name, ".rela.plt")) {
+            elf->rela_plt = s;
         }
-        if(!strcmp(name, ".symtab")) {
+        else if(!strcmp(name, ".symtab")) {
             elf->symtab = s;
         }
-        if(!strcmp(name, ".dynsym")) {
+        else if(!strcmp(name, ".dynsym")) {
             elf->dynsym = s;
         }
     }
 }
 
-int is_data_pointer(elf_t *elf, unsigned long ptr) {
-    for(int i = 0; i < elf->header->e_shnum; i ++) {
-        Elf64_Shdr *s = &elf->sheader[i];
-        // const char *name = elf->shstrtab + s->sh_name;
-        Elf64_Xword flags = s->sh_flags;
-        if ((flags & SHF_ALLOC) && (flags & SHF_EXECINSTR) == 0) {
-            if (ptr >= s->sh_addr &&
-                ptr <  s->sh_addr + s->sh_size) {
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
-
 void cleanup_elf_info(elf_t *elf) {
     munmap(elf->map, elf->length);
     close(elf->fd);
-}
-
-unsigned long get_elf_init_size(elf_t *elf) {
-    for(int i = 0; i < elf->header->e_shnum; i ++) {
-        Elf64_Shdr *s = &elf->sheader[i];
-        const char *name = elf->shstrtab + s->sh_name;
-        if(!strcmp(name, ".init")) {
-            return s->sh_size;
-        }
-    }
-    return 0;
-}
-
-// does not get base addr properly, needs elfspace
-const char *get_elf_soname(elf_t *elf) {
-    unsigned long *dynamic = (unsigned long *)
-        ((unsigned long)elf->map + (unsigned long)elf->dynamic);
-    for(unsigned long *pointer = dynamic; pointer < dynamic + 0x1000;
-        pointer += 2) {
-
-        unsigned long type = *pointer;
-        if(type == DT_NULL) break;
-        if(type == DT_SONAME) {
-            // found it
-            unsigned long dt_soname = pointer[1];
-            return (const char *)dt_soname;
-        }
-    }
-    
-    // give up after searching a lot of memory, or upon finding a DT_NULL
-    return 0;
 }
