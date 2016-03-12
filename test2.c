@@ -11,6 +11,8 @@ void bad(int s) {
 }
 
 int main() {
+    puts("ok");
+
     signal(SIGUSR1, good);
     signal(SIGUSR2, bad);
 

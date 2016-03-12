@@ -17,7 +17,7 @@ static void find_dynamic(elf_t *elf);
 static void find_got_and_plt(elf_t *elf);
 
 void get_elf_info_for_pid(elf_t *elf, pid_t pid) {
-    printf("mapping executable for process %d...\n", (int)pid);
+    //printf("mapping executable for process %d...\n", (int)pid);
     
     char name[64];
     sprintf(name, "/proc/%d/exe", (int)pid);
@@ -25,7 +25,7 @@ void get_elf_info_for_pid(elf_t *elf, pid_t pid) {
 }
 
 void get_elf_info_for_file(elf_t *elf, const char *filename) {
-    printf("getting ELF info for [%s]\n", filename);
+    //printf("getting ELF info for [%s]\n", filename);
 
     elf->fd = open(filename, O_RDONLY, 0);
     if(elf->fd < 0) die("can't open executable image\n");
@@ -108,7 +108,6 @@ static void find_dynamic(elf_t *elf) {
         const char *name = elf->shstrtab + s->sh_name;
         if(!strcmp(name, ".dynamic")) {
             elf->dynamic = (unsigned long *)s->sh_addr;
-            printf("found .dynamic at 0x%lx\n", (unsigned long)elf->dynamic);
             break;
         }
     }
@@ -125,25 +124,17 @@ static void find_got_and_plt(elf_t *elf) {
         const char *name = elf->shstrtab + s->sh_name;
         if(!strcmp(name, ".got")) {
             elf->got = (unsigned long *)s->sh_addr;
-            printf("found .got at 0x%lx\n", (unsigned long)elf->got);
         }
         if(!strcmp(name, ".got.plt")) {
             elf->got_plt = (unsigned long *)s->sh_addr;
-            printf("found .got.plt at 0x%lx\n", (unsigned long)elf->got_plt);
         }
         if(!strcmp(name, ".plt")) {
             elf->plt      = (unsigned long)s->sh_addr;
             elf->plt_size = (unsigned long)s->sh_size;
-            printf("found .plt at 0x%lx, size = 0x%lx\n", (unsigned long)elf->plt, elf->plt_size);
         }
         if(!strcmp(name, ".plt.got")) {
             elf->plt_got        = (unsigned long)s->sh_addr;
             elf->plt_got_size   = (unsigned long)s->sh_size;
-            printf("found .plt.got at 0x%lx\n", (unsigned long)elf->plt_got);
-        }
-        if(!strcmp(name, ".rela.plt")) {
-            elf->rela_plt = (unsigned long *)s->sh_addr;
-            printf("found .rela.plt at 0x%lx\n", (unsigned long)elf->rela_plt);
         }
         if(!strcmp(name, ".symtab")) {
             elf->symtab = s;

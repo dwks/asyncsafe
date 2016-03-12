@@ -6,6 +6,9 @@
 #include <unistd.h>
 #include "elfmap.h"
 
+#define printf(...)
+#define puts(...)
+
 static elf_t elf;
 static int initialized = 0;
 void asyncsafe_init(void) {
@@ -21,10 +24,12 @@ typedef void (*sigaction_t)(int, siginfo_t *, void *);
 #define SIG_WRITE(s) \
     write(STDERR_FILENO, s, sizeof s)
 
+unsigned long sym_index[96/16];
+
 void asyncsafe_violation_asm(void);
 void asyncsafe_violation(int index) {
     Elf64_Sym *symtab = (Elf64_Sym *)(elf.map + elf.dynsym->sh_offset);
-    Elf64_Sym *sym = symtab + (index + 1);
+    Elf64_Sym *sym = symtab + sym_index[index];
     const char *name = elf.dynstr + sym->st_name;
 
     SIG_WRITE("asyncsafe: violation! called [");
@@ -91,12 +96,13 @@ void erase_entries(elf_t *elf) {
                     }
                 }
 
-                printf("%s plt entry at %lx (index %d) for [%s]\n",
-                    good ? "allow" : "BLOCK", address, symbol, name);
+                printf("%s plt entry at %lx (index %d, addend %lx) for [%s]\n",
+                    good ? "allow" : "BLOCK", address, symbol, addend, name);
 
+                sym_index[i] = symbol;
                 if(!good) {
                     orig_address[i] = *(unsigned long *)address;
-                    // *(unsigned long *)address = &asyncsafe_violation;
+                    *(unsigned long *)address = elf->plt + 16*(i+1) + 6;
                 }
                 plt_allowed[i] = good;
             }
