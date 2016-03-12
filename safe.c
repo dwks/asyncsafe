@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <signal.h>
+#include <string.h>
 #include <dlfcn.h>
 #include <unistd.h>
 #include "elfmap.h"
@@ -23,7 +24,67 @@ void asyncsafe_violation(void) {
 
 unsigned long orig_address[96/16];
 
+const char *allowed[] = {
+    "write"
+};
+
+void erase_entries(elf_t *elf) {
+    unsigned long handler = *(unsigned int *)(elf->plt + 8) + elf->plt + 8 + 4;
+    printf("handler %lx\n", handler);
+    *(unsigned long *)handler = &asyncsafe_violation;
+
+
+    Elf64_Sym *symtab = (Elf64_Sym *)(elf->map + elf->dynsym->sh_offset);
+
+    unsigned long base_address = 0;
+    for(int i = 0; i < elf->header->e_shnum; i ++) {
+        Elf64_Shdr *s = &elf->sheader[i];
+
+        // Note: 64-bit x86 always uses RELA relocations (not REL),
+        // according to readelf source: see the function guess_is_rela()
+        if(s->sh_type != SHT_RELA) continue;
+
+        // We never use debug relocations, and they often contain relative
+        // addresses which cannot be dereferenced directly (segfault).
+        // So ignore all sections with debug relocations.
+        const char *name = elf->shstrtab + s->sh_name;
+        if(strstr(name, "debug")) continue;
+
+        Elf64_Rela *data = elf->map + s->sh_offset;
+
+        size_t count = s->sh_size / sizeof(*data);
+        for(size_t i = 0; i < count; i ++) {
+            Elf64_Rela *r = &data[i];
+            unsigned long address   = base_address + r->r_offset;
+            unsigned long type      = ELF64_R_TYPE(r->r_info);
+            unsigned long symbol    = ELF64_R_SYM(r->r_info);
+            unsigned long addend    = r->r_addend;
+
+            if(type == R_X86_64_JUMP_SLOT) {
+                Elf64_Sym *sym = symtab + symbol;
+                const char *name = elf->dynstr + sym->st_name;
+                int good = 0;
+                for(size_t z = 0; z < sizeof(allowed)/sizeof(*allowed); z ++) {
+                    if(strcmp(allowed[z], name) == 0) {
+                        good = 1;
+                        break;
+                    }
+                }
+
+                printf("%s plt entry at %lx for [%s]\n",
+                    good ? "allow" : "BLOCK", address, name);
+
+                if(!good) {
+                    orig_address[i] = *(unsigned long *)address;
+                    *(unsigned long *)address = &asyncsafe_violation;
+                }
+            }
+        }
+    }
+}
+
 void asyncsafe_toggle(int on) {
+#if 0
     unsigned char *p = (void *)elf.plt;
     unsigned long plt_size = elf.plt_size;
 
@@ -44,6 +105,9 @@ void asyncsafe_toggle(int on) {
         p += 16;
         index ++;
     }
+#else
+    erase_entries(&elf);
+#endif
 }
 
 sigaction_t orig_func[64];  // max signals

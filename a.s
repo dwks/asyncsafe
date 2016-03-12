@@ -1,6 +1,7 @@
 .global asyncsafe_enter
 .global asyncsafe_exit
 .global asyncsafe_ptr
+.global asyncsafe_violation_asm
 .extern asyncsafe_violation
 .extern plt_begin
 
@@ -28,6 +29,9 @@ asyncsafe_exit:
 
 asyncsafe_ptr:
     call asyncsafe_enter@plt
+    hlt
+
+asyncsafe_violation_asm:
     hlt
 
 .section .rodata
