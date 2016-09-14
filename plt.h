@@ -10,6 +10,7 @@ extern unsigned long *plt_orig_address;
 
 extern void *orig_resolve;
 
+void make_plt_writable(void);
 void enable_intercept(void);
 void disable_intercept(void);
 

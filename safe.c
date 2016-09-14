@@ -27,6 +27,8 @@ void asyncsafe_init(void) {
     plt_allowed = calloc(plt_count, sizeof *plt_allowed);
     plt_symbol = calloc(plt_count, sizeof *plt_symbol);
     plt_orig_address = calloc(plt_count, sizeof *plt_orig_address);
+
+    make_plt_writable();
 }
 
 /* --- Signal interception (signal, sigaction) --- */

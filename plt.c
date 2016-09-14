@@ -1,5 +1,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
+#include <limits.h>
+#include <sys/mman.h>
 #include "allow.h"
 #include "safe.h"
 #include "print.h"
@@ -78,6 +80,34 @@ static void restore_plt_entries(elf_t *elf) {
             *(unsigned long *)address = plt_orig_address[i];
         }
     }
+}
+
+static void set_plt_permissions(elf_t *elf, int prot) {
+    static const unsigned long PAGE_SIZE = 0x1000;
+
+    unsigned long min = ULONG_MAX;
+    unsigned long max = 0;
+
+    puts("make sure plt is writable");
+    printf("elf rela_plt is %lx\n", elf->rela_plt);
+    Elf64_Rela *data = elf->map + elf->rela_plt->sh_offset;
+    for(size_t i = 0; i < plt_count; i ++) {
+        Elf64_Rela *r = &data[i];
+        unsigned long address   = base_address + r->r_offset;
+        if(address < min) min = address;
+        if(address+8 > max) max = address+8;
+    }
+
+    if(min < max) {
+        unsigned long base = min & ~(PAGE_SIZE-1);
+        size_t size = (max + (PAGE_SIZE-1)) & ~(PAGE_SIZE-1);
+        mprotect((void *)base, size, prot);
+    }
+}
+
+void make_plt_writable(void) {
+    // in case the target was compiled with -Wl,-z,relro,-z,now
+    set_plt_permissions(&elf, PROT_READ | PROT_WRITE);
 }
 
 void enable_intercept(void) {
