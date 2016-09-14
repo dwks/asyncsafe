@@ -27,7 +27,7 @@ typedef struct elf_t {
     const char *dynstr;
     
     unsigned long plt, plt_size;
-    Elf64_Shdr *rela_plt, *plt_got;
+    Elf64_Shdr *rela_plt, *got_plt;
     Elf64_Shdr *symtab, *dynsym;
 } elf_t;
 

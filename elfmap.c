@@ -99,7 +99,7 @@ static void find_strtab(elf_t *elf) {
 
 static void find_got_and_plt(elf_t *elf) {
     elf->plt = elf->plt_size = 0;
-    elf->rela_plt = elf->plt_got = 0;
+    elf->rela_plt = elf->got_plt = 0;
     elf->symtab = elf->dynsym = 0;
     
     for(int i = 0; i < elf->header->e_shnum; i ++) {
@@ -109,8 +109,8 @@ static void find_got_and_plt(elf_t *elf) {
             elf->plt      = (unsigned long)s->sh_addr;
             elf->plt_size = (unsigned long)s->sh_size;
         }
-        else if(!strcmp(name, ".plt.got")) {
-            elf->plt_got = s;
+        else if(!strcmp(name, ".got.plt")) {
+            elf->got_plt = s;
         }
         else if(!strcmp(name, ".rela.plt")) {
             elf->rela_plt = s;
