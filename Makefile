@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=gnu99 -Wall -Wextra -Wno-unused-result #-DDISABLE_LOGGING
+CFLAGS = -std=gnu99 -Wall -Wextra -Wno-unused-result -Wl,-z,lazy #-DDISABLE_LOGGING
 
 .PHONY: all clean
 all: test test2 libasyncsafe.so
